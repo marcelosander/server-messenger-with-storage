@@ -1,0 +1,75 @@
+<!doctype html >
+<html>
+  <head>
+    <title><%= title %></title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font: 13px Helvetica, Arial; }
+      form { background: #000; padding: 0 5px; position: fixed; right: 0; top: 0; height: 100%; width: 16%; color:#fff; }
+      form input { border: 0; padding: 10px; width: 100%; margin: 5px; color: #333}
+      form label { display: block; margin: 5px 5px 0; }
+      form button { width: 100%; background: rgb(130, 224, 255); border: none; padding: 10px; margin: 15px 5px 5px; }
+      #messages { list-style-type: none; margin: 0; padding: 0; overflow: auto; max-width: 83%;}
+      #messages li { padding: 5px 10px; }
+      #messages li:nth-child(odd) { background: #fafafa; }
+      h1 { margin: 10px 0; padding: 0 10px; }
+      hr { margin: 10px 0; }
+    </style>
+  </head>
+  <body>
+    <h1><%= title %></h1>
+    <ul id="messages" ></ul>
+    <form>
+      <h1>chat</h1>
+      <label for="room" >sala</label>
+      <input name="room" autocomplete="off" required />
+      <label for="author" >usuario</label>
+      <input name="author" autocomplete="off" required />
+      <label for="textmessage" >mensagem</label>
+      <input name="textmessage" autocomplete="off" />
+      <button type="submit" > manda bala </button>
+    </form>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+    <script>
+      $(() => {
+        $( "#mtext" ).focus();
+        const socket = io( "http://localhost:3000" );
+        $( "form" ).submit( () => {
+          const data = {
+            room: $( "input[name=room]" ).val(),
+            author: $( "input[name=author]" ).val(),
+            text: $( "input[name=textmessage]" ).val()
+          };
+          const invalidForm = !data.room
+            || !data.author
+            || !data.text;
+          if ( !invalidForm ){
+            socket.emit( "send_message", data );
+            $( "input[name=textmessage]" ).val( "" );
+          }
+          return false;
+        });
+        $( "input[name=room]" ).on( "change", () => {
+          const room = $( "input[name=room]" ).val();
+          socket.emit( "join_room", room );
+          renderAlterToRoom( room );
+        });
+        const renderAlterToRoom = room => {
+          const message = `--------------------------- alter to room ${room}`;
+          const $em = $( "<em>" ).text( message );
+          $( "<li>" ).append( $em ).appendTo( "#messages" );
+        };
+        const renderMessage = ( data ) => {
+          const $li = $( "<li>" );
+          $( "<b>" ).text( data.author ).appendTo( $li );
+          $( "<span>" ).text( ": " ).appendTo( $li );
+          $( "<span>" ).text( data.text ).appendTo( $li );
+          $( "#messages" ).append( $li );
+        };
+        socket.on( "previeous_messages", history =>  history.forEach( renderMessage ) );
+        socket.on( "receive_message", renderMessage );
+      });
+    </script>
+  </body>
+</html>

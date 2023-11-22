@@ -1,0 +1,115 @@
+#!/usr/bin/env node
+
+/**
+ * Module dependencies.
+ */
+
+var app = require('../app');
+var debug = require('debug')('servermesseger:server');
+var http = require('http');
+
+/**
+ * Get port from environment and store in Express.
+ */
+
+var port = normalizePort(process.env.PORT || '3000');
+app.set('port', port);
+
+/**
+ * Create HTTP server.
+ */
+
+var server = http.createServer(app);
+
+/**
+ * Listen on provided port, on all network interfaces.
+ */
+
+server.listen(port);
+server.on('error', onError);
+server.on('listening', onListening);
+
+/**
+ * Normalize a port into a number, string, or false.
+ */
+
+function normalizePort(val) {
+  var port = parseInt(val, 10);
+
+  if (isNaN(port)) {
+    // named pipe
+    return val;
+  }
+
+  if (port >= 0) {
+    // port number
+    return port;
+  }
+
+  return false;
+}
+
+/**
+ * Event listener for HTTP server "error" event.
+ */
+
+function onError(error) {
+  if (error.syscall !== 'listen') {
+    throw error;
+  }
+
+  var bind = typeof port === 'string'
+    ? 'Pipe ' + port
+    : 'Port ' + port;
+
+  // handle specific listen errors with friendly messages
+  switch (error.code) {
+    case 'EACCES':
+      console.error(bind + ' requires elevated privileges');
+      process.exit(1);
+      break;
+    case 'EADDRINUSE':
+      console.error(bind + ' is already in use');
+      process.exit(1);
+      break;
+    default:
+      throw error;
+  }
+}
+
+/**
+ * Event listener for HTTP server "listening" event.
+ */
+
+function onListening() {
+  var addr = server.address();
+  var bind = typeof addr === 'string'
+    ? 'pipe ' + addr
+    : 'port ' + addr.port;
+  debug('Listening on ' + bind);
+}
+
+const io = require( "socket.io" )(server);
+const dao = require("./dao");
+const appLog = require("./log");
+
+io.on( "connection", socket => {
+  syoLog.info( `welcome socket ${socket.id}` );
+  
+  socket.on( "send_message", ( {room, author, text} ) => {
+    appLog.debug( {room, author, text} )
+    const createdAt = new Date().toISOString();
+    dao.message.add( {room, author, text, createdAt} );
+    io.to( room ).emit( "receive_message", { author, text} );
+  });
+
+  socket.on( "join_room", room => {
+    appLog.info( `${socket.id} join at room ${room}` );
+    socket.join( room );
+    dao.message.listByRoom({room})
+      .then( history => socket.emit( "previeous_messages", history ) );
+  });
+
+  socket.on( "disconnect" , () => syoLog.info( `bye bye socket ${socket.id}` ) );
+
+});
