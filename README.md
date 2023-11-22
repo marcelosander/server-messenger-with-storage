@@ -1,4 +1,4 @@
-# Server Message 
+# Server Messenger
 
 serviço de mensageria via websocket - modelo chat
 
